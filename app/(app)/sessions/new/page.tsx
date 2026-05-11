@@ -1,5 +1,5 @@
-import { PagePlaceholder } from "@/components/page-placeholder"
+import { NewSessionChat } from "@/components/new-session-chat"
 
 export default function NewSessionPage() {
-  return <PagePlaceholder routeKey="newSession" />
+  return <NewSessionChat />
 }
