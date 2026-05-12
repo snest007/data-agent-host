@@ -25,7 +25,7 @@ export type WorkspaceState = {
   temporarySessionIds: string[]
 }
 
-export const WORKSPACE_STATE_VERSION = 2
+export const WORKSPACE_STATE_VERSION = 3
 
 export const initialWorkspaceState: WorkspaceState = {
   version: WORKSPACE_STATE_VERSION,
@@ -68,21 +68,21 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "今日主体资金余额",
       user: "帮我查一下今日各主体资金余额，并生成表格",
       assistant:
-        "可以。当前 mock 结果建议按主体、币种、可用余额、冻结余额、日环比、更新时间输出，并把余额低于阈值的主体置顶。",
+        "已生成右侧 Artifacts：包含主体资金余额明细表和余额结构表达。当前建议按主体、币种、可用余额、冻结余额、日环比、更新时间输出，并把余额低于阈值的主体置顶。",
     }),
     "temp-2": temporarySession({
       id: "temp-2",
       title: "需求明细异常记录",
       user: "把需求明细里的异常记录找出来",
       assistant:
-        "已按超期未闭环、负责人缺失、状态回退、重复提交四类整理异常。mock 数据中超期未闭环占比最高，建议优先追踪 7 天以上未更新记录。",
+        "已生成右侧 Artifacts：包含异常记录明细表和异常类型占比。当前按超期未闭环、负责人缺失、状态回退、重复提交四类整理异常，其中超期未闭环占比最高，建议优先追踪 7 天以上未更新记录。",
     }),
     "temp-3": temporarySession({
       id: "temp-3",
       title: "预算漏斗执行摘要",
       user: "基于预算漏斗数据生成一份执行摘要",
       assistant:
-        "预算从申请到消耗的主要损耗点集中在审批等待和冻结释放阶段。建议将高金额、长等待的预算单拆成待审批、待释放、待核销三张表跟进。",
+        "已生成右侧 Artifacts：包含预算漏斗关键明细和阶段转化表达。预算从申请到消耗的主要损耗点集中在审批等待和冻结释放阶段，建议将高金额、长等待的预算单拆成待审批、待释放、待核销三张表跟进。",
     }),
     "requirements-session-1": projectSession({
       id: "requirements-session-1",
@@ -91,7 +91,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "高优需求超期定位",
       user: "筛出 P0/P1 需求里超期且未闭环的记录，按负责人汇总。",
       assistant:
-        "mock 汇总：P0/P1 超期未闭环 18 条，集中在数据接入、权限审批、口径确认三类。负责人维度 Top3 分别为 A 组 7 条、B 组 5 条、C 组 3 条。",
+        "已生成右侧 Artifacts：包含 P0/P1 超期未闭环记录明细表，以及负责人分布图示。当前 mock 汇总为 18 条，主要集中在数据接入、权限审批、口径确认三类，负责人 Top3 分别为 A 组 7 条、B 组 5 条、C 组 3 条。",
     }),
     "requirements-session-2": projectSession({
       id: "requirements-session-2",
@@ -100,7 +100,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "需求来源占比",
       user: "统计本月需求来源占比，并找出增长最快的来源。",
       assistant:
-        "mock 结果：业务运营 42%、财务分析 28%、项目管理 18%、其他 12%。增长最快的是财务分析类需求，环比提升 9 个百分点。",
+        "已生成右侧 Artifacts：包含来源维度明细表和来源占比图示。当前 mock 结果为业务运营 42%、财务分析 28%、项目管理 18%、其他 12%，增长最快的是财务分析类需求，环比提升 9 个百分点。",
     }),
     "requirements-session-3": projectSession({
       id: "requirements-session-3",
@@ -109,7 +109,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "负责人待办排行",
       user: "按负责人统计待处理需求数、平均等待天数和最早创建时间。",
       assistant:
-        "mock 结果显示待办集中在 5 位负责人名下，其中两位平均等待超过 6 天。建议对等待天数超过 5 天的需求自动触发提醒。",
+        "已生成右侧 Artifacts：包含负责人待办排行明细表和等待时长对比。当前 mock 结果显示待办集中在 5 位负责人名下，其中两位平均等待超过 6 天，建议对等待天数超过 5 天的需求自动触发提醒。",
     }),
     "budget-funnel-session-1": projectSession({
       id: "budget-funnel-session-1",
@@ -118,7 +118,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "预算漏斗转化分析",
       user: "从申请、审批、冻结到消耗，统计每个环节的转化率。",
       assistant:
-        "mock 漏斗：申请 100%，审批通过 76%，冻结成功 63%，实际消耗 51%。最大流失点在审批到冻结，建议补充审批驳回原因字段。",
+        "已生成右侧 Artifacts：包含预算漏斗分阶段明细表和转化图示。当前 mock 漏斗为申请 100%，审批通过 76%，冻结成功 63%，实际消耗 51%，最大流失点在审批到冻结，建议补充审批驳回原因字段。",
     }),
     "budget-funnel-session-2": projectSession({
       id: "budget-funnel-session-2",
@@ -127,7 +127,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "冻结预算原因追踪",
       user: "找出冻结预算超过 14 天仍未释放或消耗的记录。",
       assistant:
-        "mock 结果：超过 14 天的冻结预算 23 笔，金额主要集中在渠道投放和联运结算。建议按金额降序人工复核前 10 笔。",
+        "已生成右侧 Artifacts：包含冻结预算异常明细表和风险结构表达。当前 mock 结果为超过 14 天的冻结预算 23 笔，金额主要集中在渠道投放和联运结算，建议按金额降序人工复核前 10 笔。",
     }),
     "budget-funnel-session-3": projectSession({
       id: "budget-funnel-session-3",
@@ -136,7 +136,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "渠道预算消耗预警",
       user: "检查渠道预算消耗进度，标出低于计划进度 20% 的渠道。",
       assistant:
-        "mock 预警：渠道 C、渠道 F、渠道 H 消耗显著低于计划。渠道 C 预算大但投放启动晚，建议拆分展示启动延迟和转化偏低两类原因。",
+        "已生成右侧 Artifacts：包含预算预警明细表和渠道对比图示。当前 mock 预警为渠道 C、渠道 F、渠道 H 消耗显著低于计划，其中渠道 C 预算大但投放启动晚，建议拆分展示启动延迟和转化偏低两类原因。",
     }),
     "request-execution-session-1": projectSession({
       id: "request-execution-session-1",
@@ -145,7 +145,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "需求单执行 SLA",
       user: "统计需求单从创建到完成的 SLA 达成率，按部门拆分。",
       assistant:
-        "mock SLA 达成率 83%。研发支持、数据平台、财务分析三个部门中，数据平台达成率最低，主要原因是上游表权限等待。",
+        "已生成右侧 Artifacts：包含部门 SLA 明细表和达成率图示。当前 mock SLA 达成率为 83%，研发支持、数据平台、财务分析三个部门中数据平台最低，主要原因是上游表权限等待。",
     }),
     "request-execution-session-2": projectSession({
       id: "request-execution-session-2",
@@ -154,7 +154,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "部门完成率对比",
       user: "按部门统计本月需求单完成率、进行中数量和阻塞数量。",
       assistant:
-        "mock 对比：财务分析完成率 91%，研发支持 84%，数据平台 72%。数据平台阻塞数量最高，建议进一步拆出阻塞归因。",
+        "已生成右侧 Artifacts：包含部门完成率明细表和完成率对比图示。当前 mock 对比为财务分析完成率 91%，研发支持 84%，数据平台 72%，其中数据平台阻塞数量最高，建议进一步拆出阻塞归因。",
     }),
     "request-execution-session-3": projectSession({
       id: "request-execution-session-3",
@@ -163,7 +163,7 @@ export const initialWorkspaceState: WorkspaceState = {
       title: "阻塞原因归类",
       user: "把所有阻塞中的需求单按原因归类，并给出处理建议。",
       assistant:
-        "mock 阻塞原因：权限等待 38%、口径未确认 27%、排期冲突 21%、数据缺失 14%。建议把权限等待类自动同步到 MCP 权限申请流。",
+        "已生成右侧 Artifacts：包含阻塞原因明细表和阻塞结构占比。当前 mock 阻塞原因包括权限等待 38%、口径未确认 27%、排期冲突 21%、数据缺失 14%，建议把权限等待类自动同步到 MCP 权限申请流。",
     }),
   },
 }
