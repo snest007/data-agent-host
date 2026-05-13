@@ -44,6 +44,7 @@ type WorkspaceContextValue = {
   renameProject: (projectId: string, title: string) => void
   renameSession: (sessionId: string, title: string) => void
   saveTemporarySession: (sessionId: string) => WorkspaceSession | undefined
+  setProjectMcpSharing: (projectId: string, isMcpShared: boolean) => void
   temporarySessions: WorkspaceSession[]
   updateSessionMessages: (sessionId: string, messages: UIMessage[]) => void
 }
@@ -71,9 +72,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       try {
         const parsed = JSON.parse(stored) as WorkspaceState
+        const restoredState = restoreWorkspaceState(parsed)
 
-        if (parsed.version === WORKSPACE_STATE_VERSION) {
-          setState(parsed)
+        if (restoredState) {
+          setState(restoredState)
         }
       } catch {
         window.localStorage.removeItem(STORAGE_KEY)
@@ -195,9 +197,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!session) {
         return current
       }
+      const projects = session.projectId
+        ? current.projects.map((project) =>
+            project.id === session.projectId &&
+            project.sessionIds.length === 1 &&
+            project.sessionIds[0] === sessionId
+              ? { ...project, title: normalizedTitle }
+              : project
+          )
+        : current.projects
 
       return {
         ...current,
+        projects,
         sessions: {
           ...current.sessions,
           [sessionId]: {
@@ -228,6 +240,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
     })
   }, [])
+
+  const setProjectMcpSharing = useCallback(
+    (projectId: string, isMcpShared: boolean) => {
+      setState((current) => {
+        return {
+          ...current,
+          projects: current.projects.map((project) =>
+            project.id === projectId ? { ...project, isMcpShared } : project
+          ),
+        }
+      })
+    },
+    []
+  )
 
   const deleteProject = useCallback((projectId: string) => {
     setState((current) => {
@@ -293,6 +319,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         id: projectId,
         title: session.title || "保存的项目",
         description: "从临时会话保存的数据查询项目。",
+        isMcpShared: false,
         sessionIds: [sessionId],
       }
       const savedSession: WorkspaceSession = {
@@ -395,9 +422,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const session = getSessionByRoute(routeSegment, project.id)
 
           if (session) {
+            const isSingleSessionProject = project.sessionIds.length === 1
+
             return {
               title: session.title,
-              breadcrumbs: ["我的数据资产", project.title, session.title],
+              breadcrumbs: isSingleSessionProject
+                ? ["我的数据资产", session.title]
+                : ["我的数据资产", project.title, session.title],
             }
           }
         }
@@ -434,6 +465,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       renameProject,
       renameSession,
       saveTemporarySession,
+      setProjectMcpSharing,
       temporarySessions,
       updateSessionMessages,
     }
@@ -450,6 +482,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     renameProject,
     renameSession,
     saveTemporarySession,
+    setProjectMcpSharing,
     state.projects,
     state.sessions,
     state.temporarySessionIds,
@@ -471,6 +504,92 @@ export function useWorkspace() {
   }
 
   return context
+}
+
+function restoreWorkspaceState(state: WorkspaceState): WorkspaceState | null {
+  if (!state || !Array.isArray(state.projects) || !state.sessions) {
+    return null
+  }
+
+  if (state.version === WORKSPACE_STATE_VERSION) {
+    return state
+  }
+
+  if (state.version > WORKSPACE_STATE_VERSION) {
+    return null
+  }
+
+  return {
+    ...migrateProjectsToSingleSessionFolders(state),
+    version: WORKSPACE_STATE_VERSION,
+  }
+}
+
+function migrateProjectsToSingleSessionFolders(
+  state: WorkspaceState
+): WorkspaceState {
+  const sessions = { ...state.sessions }
+  const usedProjectIds = new Set<string>()
+  const projects = state.projects.flatMap((project) => {
+    const projectSessions = project.sessionIds
+      .map((sessionId) => sessions[sessionId])
+      .filter((session): session is WorkspaceSession => Boolean(session))
+
+    if (projectSessions.length === 0) {
+      return [
+        {
+          ...project,
+          id: reserveProjectId(project.id, usedProjectIds),
+          sessionIds: [],
+        },
+      ]
+    }
+
+    return projectSessions.map((session, index) => {
+      const projectId = reserveProjectId(
+        index === 0
+          ? project.id
+          : `${project.id}-${session.routeSegment || session.id}`,
+        usedProjectIds
+      )
+
+      sessions[session.id] = {
+        ...session,
+        projectId,
+      }
+
+      return {
+        ...project,
+        id: projectId,
+        title: session.title || project.title,
+        sessionIds: [session.id],
+      }
+    })
+  })
+
+  return {
+    ...state,
+    projects,
+    sessions,
+  }
+}
+
+function reserveProjectId(baseId: string, usedProjectIds: Set<string>) {
+  if (!usedProjectIds.has(baseId)) {
+    usedProjectIds.add(baseId)
+    return baseId
+  }
+
+  let index = 2
+  let nextId = `${baseId}-${index}`
+
+  while (usedProjectIds.has(nextId)) {
+    index += 1
+    nextId = `${baseId}-${index}`
+  }
+
+  usedProjectIds.add(nextId)
+  return nextId
 }
 
 function createWorkspaceSessionId() {

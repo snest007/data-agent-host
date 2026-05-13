@@ -23,6 +23,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -52,6 +61,8 @@ import {
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   SaveIcon,
+  Share2Icon,
+  SquareDashedMousePointerIcon,
 } from "lucide-react"
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -159,7 +170,16 @@ function SessionHeaderActions({
   session: WorkspaceSession
 }) {
   const router = useRouter()
-  const { saveTemporarySession } = useWorkspace()
+  const { getProject, saveTemporarySession, setProjectMcpSharing } =
+    useWorkspace()
+  const project = session.projectId ? getProject(session.projectId) : undefined
+  const isMcpShared = Boolean(project?.isMcpShared)
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+  const shareDialogTitle = isMcpShared ? "取消MCP分享" : "通过MCP分享"
+  const shareDialogDescription = isMcpShared
+    ? "是否取消分享？"
+    : "将当前Artifacts以MCP形式分享。"
+  const shareButtonLabel = isMcpShared ? "取消MCP分享" : "通过MCP分享"
 
   function handleSaveTemporarySession() {
     const savedSession = saveTemporarySession(session.id)
@@ -169,6 +189,15 @@ function SessionHeaderActions({
         `/assets/my/${savedSession.projectId}/${savedSession.routeSegment}`
       )
     }
+  }
+
+  function handleConfirmMcpSharing() {
+    if (!project) {
+      return
+    }
+
+    setProjectMcpSharing(project.id, !isMcpShared)
+    setIsShareDialogOpen(false)
   }
 
   return (
@@ -191,6 +220,40 @@ function SessionHeaderActions({
           <TooltipContent>保存为数据资产</TooltipContent>
         </Tooltip>
       ) : null}
+
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={shareButtonLabel}
+                disabled={!project}
+                onClick={() => setIsShareDialogOpen(true)}
+              />
+            }
+          >
+            <Share2Icon />
+          </TooltipTrigger>
+          <TooltipContent>{shareButtonLabel}</TooltipContent>
+        </Tooltip>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{shareDialogTitle}</DialogTitle>
+            <DialogDescription>{shareDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              取消
+            </DialogClose>
+            <Button type="button" onClick={handleConfirmMcpSharing}>
+              确定
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tooltip>
         <TooltipTrigger
@@ -224,6 +287,9 @@ function SessionArtifactPanel({
   isOpen: boolean
   session: WorkspaceSession
 }) {
+  const [isPickingArtifactContext, setIsPickingArtifactContext] =
+    useState(false)
+
   return (
     <aside
       aria-hidden={!isOpen}
@@ -239,21 +305,46 @@ function SessionArtifactPanel({
           <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
           <h2 className="truncate text-sm font-medium">Artifacts</h2>
         </div>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Artifacts 操作"
-              />
-            }
-          >
-            <MoreHorizontalIcon />
-          </TooltipTrigger>
-          <TooltipContent>Artifacts 操作</TooltipContent>
-        </Tooltip>
+        <div className="flex shrink-0 items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant={isPickingArtifactContext ? "secondary" : "ghost"}
+                  size="icon-sm"
+                  aria-label="选择 Artifact 元素作为上下文"
+                  aria-pressed={isPickingArtifactContext}
+                  onClick={() =>
+                    setIsPickingArtifactContext((isPicking) => !isPicking)
+                  }
+                />
+              }
+            >
+              <SquareDashedMousePointerIcon />
+            </TooltipTrigger>
+            <TooltipContent>
+              {isPickingArtifactContext
+                ? "退出选择上下文元素"
+                : "选择 Artifact 元素作为上下文"}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Artifacts 操作"
+                />
+              }
+            >
+              <MoreHorizontalIcon />
+            </TooltipTrigger>
+            <TooltipContent>Artifacts 操作</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
@@ -309,6 +400,8 @@ function SessionHeaderTitle({ session }: { session: WorkspaceSession }) {
   const parentTitle = session.isTemporary
     ? "临时会话"
     : (project?.title ?? "项目会话")
+  const shouldShowParent =
+    session.isTemporary || (project?.sessionIds.length ?? 0) > 1
 
   function handleRename() {
     const nextTitle = window.prompt("重命名会话", session.title)
@@ -327,10 +420,14 @@ function SessionHeaderTitle({ session }: { session: WorkspaceSession }) {
 
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <span className="truncate text-sm font-normal text-muted-foreground">
-        {parentTitle}
-      </span>
-      <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />
+      {shouldShowParent ? (
+        <>
+          <span className="truncate text-sm font-normal text-muted-foreground">
+            {parentTitle}
+          </span>
+          <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />
+        </>
+      ) : null}
       <div className="flex min-w-0 items-center gap-1">
         <h1 className="truncate text-sm font-normal tracking-normal">
           {session.title}
@@ -378,6 +475,13 @@ function getSessionFromPath(
 
   if (segments[0] === "assets" && segments[1] === "my" && segments[3]) {
     return workspace.getSessionByRoute(segments[3], segments[2])
+  }
+
+  if (segments[0] === "assets" && segments[1] === "my" && segments[2]) {
+    const project = workspace.getProject(segments[2])
+    const primarySessionId = project?.sessionIds[0]
+
+    return primarySessionId ? workspace.getSession(primarySessionId) : undefined
   }
 
   return undefined
