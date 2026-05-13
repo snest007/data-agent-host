@@ -1,3 +1,5 @@
+import { getOfficialAssetById } from "@/lib/official-assets"
+
 export const appRoutes = {
   newSession: {
     path: "/sessions/new",
@@ -140,6 +142,16 @@ export type AppRouteKey = keyof typeof appRoutes
 export type AppRoutePath = (typeof appRoutes)[AppRouteKey]["path"]
 
 export function getRouteByPath(pathname: string) {
+  if (pathname.startsWith("/assets/official/")) {
+    const assetId = pathname.split("/")[3]
+    const asset = assetId ? getOfficialAssetById(assetId) : undefined
+
+    return {
+      ...appRoutes.officialAssets,
+      breadcrumbs: ["官方数据资产", asset?.name ?? "数据详情"],
+    }
+  }
+
   return (
     Object.values(appRoutes).find((route) => route.path === pathname) ??
     appRoutes.newSession

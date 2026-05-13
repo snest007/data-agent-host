@@ -221,8 +221,11 @@ export function WorkspaceSessionPage({
                 {project?.title ?? "数据查询"}
               </p>
               <h2 className="text-2xl font-semibold tracking-normal">
-                新建会话
+                {currentSession.title}
               </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                输入新的问题后，这个会话会继续沿用当前项目的上下文。
+              </p>
             </div>
             <Composer
               input={input}
