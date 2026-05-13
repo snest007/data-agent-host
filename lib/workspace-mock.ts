@@ -4,6 +4,7 @@ export type WorkspaceProject = {
   id: string
   title: string
   description: string
+  isMcpShared?: boolean
   sessionIds: string[]
 }
 
@@ -31,34 +32,58 @@ export const initialWorkspaceState: WorkspaceState = {
   version: WORKSPACE_STATE_VERSION,
   projects: [
     {
-      id: "requirements",
-      title: "需求明细",
-      description: "需求明细表、负责人、状态与超期风险分析。",
-      sessionIds: [
-        "requirements-session-1",
-        "requirements-session-2",
-        "requirements-session-3",
-      ],
+      id: "requirements-overdue",
+      title: "高优需求超期定位",
+      description: "筛出 P0/P1 需求里超期且未闭环的负责人汇总。",
+      sessionIds: ["requirements-session-1"],
     },
     {
-      id: "budget-funnel",
-      title: "预算漏斗",
-      description: "预算申请、审批、冻结、消耗与转化漏斗分析。",
-      sessionIds: [
-        "budget-funnel-session-1",
-        "budget-funnel-session-2",
-        "budget-funnel-session-3",
-      ],
+      id: "requirements-source-share",
+      title: "需求来源占比",
+      description: "统计本月需求来源占比，并找出增长最快的来源。",
+      sessionIds: ["requirements-session-2"],
     },
     {
-      id: "request-execution",
-      title: "需求单执行情况",
-      description: "需求单执行 SLA、部门完成率与阻塞原因归因。",
-      sessionIds: [
-        "request-execution-session-1",
-        "request-execution-session-2",
-        "request-execution-session-3",
-      ],
+      id: "owner-todo-ranking",
+      title: "负责人待办排行",
+      description: "按负责人统计待处理需求数、平均等待天数和最早创建时间。",
+      sessionIds: ["requirements-session-3"],
+    },
+    {
+      id: "budget-funnel-conversion",
+      title: "预算漏斗转化分析",
+      description: "从申请、审批、冻结到消耗统计每个环节的转化率。",
+      sessionIds: ["budget-funnel-session-1"],
+    },
+    {
+      id: "frozen-budget-trace",
+      title: "冻结预算原因追踪",
+      description: "找出冻结预算超过 14 天仍未释放或消耗的记录。",
+      sessionIds: ["budget-funnel-session-2"],
+    },
+    {
+      id: "channel-budget-warning",
+      title: "渠道预算消耗预警",
+      description: "检查渠道预算消耗进度，标出低于计划进度 20% 的渠道。",
+      sessionIds: ["budget-funnel-session-3"],
+    },
+    {
+      id: "request-execution-sla",
+      title: "需求单执行 SLA",
+      description: "统计需求单从创建到完成的 SLA 达成率，按部门拆分。",
+      sessionIds: ["request-execution-session-1"],
+    },
+    {
+      id: "department-completion-rate",
+      title: "部门完成率对比",
+      description: "按部门统计本月需求单完成率、进行中数量和阻塞数量。",
+      sessionIds: ["request-execution-session-2"],
+    },
+    {
+      id: "blocker-reason-classification",
+      title: "阻塞原因归类",
+      description: "把所有阻塞中的需求单按原因归类，并给出处理建议。",
+      sessionIds: ["request-execution-session-3"],
     },
   ],
   temporarySessionIds: ["temp-1", "temp-2", "temp-3"],
@@ -113,7 +138,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "requirements-session-1": projectSession({
       id: "requirements-session-1",
-      projectId: "requirements",
+      projectId: "requirements-overdue",
       routeSegment: "session-1",
       title: "高优需求超期定位",
       messages: [
@@ -131,7 +156,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "requirements-session-2": projectSession({
       id: "requirements-session-2",
-      projectId: "requirements",
+      projectId: "requirements-source-share",
       routeSegment: "session-2",
       title: "需求来源占比",
       messages: [
@@ -149,7 +174,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "requirements-session-3": projectSession({
       id: "requirements-session-3",
-      projectId: "requirements",
+      projectId: "owner-todo-ranking",
       routeSegment: "session-3",
       title: "负责人待办排行",
       messages: [
@@ -167,7 +192,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "budget-funnel-session-1": projectSession({
       id: "budget-funnel-session-1",
-      projectId: "budget-funnel",
+      projectId: "budget-funnel-conversion",
       routeSegment: "session-1",
       title: "预算漏斗转化分析",
       messages: [
@@ -185,7 +210,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "budget-funnel-session-2": projectSession({
       id: "budget-funnel-session-2",
-      projectId: "budget-funnel",
+      projectId: "frozen-budget-trace",
       routeSegment: "session-2",
       title: "冻结预算原因追踪",
       messages: [
@@ -203,7 +228,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "budget-funnel-session-3": projectSession({
       id: "budget-funnel-session-3",
-      projectId: "budget-funnel",
+      projectId: "channel-budget-warning",
       routeSegment: "session-3",
       title: "渠道预算消耗预警",
       messages: [
@@ -221,7 +246,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "request-execution-session-1": projectSession({
       id: "request-execution-session-1",
-      projectId: "request-execution",
+      projectId: "request-execution-sla",
       routeSegment: "session-1",
       title: "需求单执行 SLA",
       messages: [
@@ -239,7 +264,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "request-execution-session-2": projectSession({
       id: "request-execution-session-2",
-      projectId: "request-execution",
+      projectId: "department-completion-rate",
       routeSegment: "session-2",
       title: "部门完成率对比",
       messages: [
@@ -257,7 +282,7 @@ export const initialWorkspaceState: WorkspaceState = {
     }),
     "request-execution-session-3": projectSession({
       id: "request-execution-session-3",
-      projectId: "request-execution",
+      projectId: "blocker-reason-classification",
       routeSegment: "session-3",
       title: "阻塞原因归类",
       messages: [
