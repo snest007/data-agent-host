@@ -33,6 +33,7 @@ type NavItem = {
   url?: string
   icon?: ReactNode
   collapsedIcon?: ReactNode
+  actionType?: "project" | "session"
   isActive?: boolean
   showAction?: boolean
   onNewSession?: () => void
@@ -123,6 +124,7 @@ function NavMenuItem({
   actionIcon?: ReactNode
 }) {
   const hasSubItems = Boolean(item.items?.length)
+  const usesProjectActions = item.actionType === "project"
 
   if (hasSubItems) {
     return (
@@ -205,18 +207,18 @@ function NavMenuItem({
         <span>{item.title}</span>
       </SidebarMenuButton>
       {item.showAction ? (
-        item.onRename || item.onDelete ? (
-          <SessionActions
-            itemTitle={item.title}
-            actionIcon={actionIcon}
-            onRename={item.onRename}
-            onDelete={item.onDelete}
-          />
-        ) : (
+        usesProjectActions ? (
           <ProjectActions
             itemTitle={item.title}
             actionIcon={actionIcon}
             onNewSession={item.onNewSession}
+            onRename={item.onRename}
+            onDelete={item.onDelete}
+          />
+        ) : (
+          <SessionActions
+            itemTitle={item.title}
+            actionIcon={actionIcon}
             onRename={item.onRename}
             onDelete={item.onDelete}
           />

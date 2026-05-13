@@ -22,7 +22,7 @@ export const appRoutes = {
     path: "/assets/my",
     title: "我的数据资产",
     description:
-      "展示用户保存后的 project 入口，每个 project 后续可以关联多个会话。",
+      "展示用户保存后的数据资产入口，当前每个 folder 对应一条会话。",
     breadcrumbs: ["我的数据资产"],
   },
   requirements: {

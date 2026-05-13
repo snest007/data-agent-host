@@ -1,17 +1,27 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { FolderOpenIcon, MessageSquareTextIcon, PlusIcon } from "lucide-react"
+import { FolderIcon, FolderSymlinkIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { useWorkspace } from "@/components/workspace-provider"
 
 export function WorkspaceProjectPage({ projectId }: { projectId: string }) {
   const router = useRouter()
-  const { createProjectSession, getProject, getSession, isHydrated } =
-    useWorkspace()
+  const { getProject, getSession, isHydrated } = useWorkspace()
   const project = getProject(projectId)
+  const primarySession = project?.sessionIds
+    .map((sessionId) => getSession(sessionId))
+    .find(Boolean)
+
+  useEffect(() => {
+    if (!project || !primarySession) {
+      return
+    }
+
+    router.replace(`/assets/my/${project.id}/${primarySession.routeSegment}`)
+  }, [primarySession, project, router])
 
   if (!project) {
     return (
@@ -31,27 +41,32 @@ export function WorkspaceProjectPage({ projectId }: { projectId: string }) {
   }
 
   const currentProject = project
-  const sessions = currentProject.sessionIds
-    .map((sessionId) => getSession(sessionId))
-    .filter((session): session is NonNullable<typeof session> =>
-      Boolean(session)
+  const currentSession = primarySession
+
+  if (currentSession) {
+    return (
+      <section className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="flex max-w-md flex-col items-center gap-2 text-center">
+          <h1 className="text-xl font-semibold">正在打开数据资产</h1>
+          <p className="text-sm leading-6 text-muted-foreground">
+            当前 folder 会直接进入它对应的会话。
+          </p>
+        </div>
+      </section>
     )
-
-  function handleCreateSession() {
-    const session = createProjectSession(currentProject.id)
-
-    if (session) {
-      router.push(`/assets/my/${currentProject.id}/${session.routeSegment}`)
-    }
   }
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-6">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <FolderOpenIcon />
+              {currentProject.isMcpShared ? (
+                <FolderSymlinkIcon />
+              ) : (
+                <FolderIcon />
+              )}
               我的数据资产
             </div>
             <div className="min-w-0">
@@ -63,38 +78,12 @@ export function WorkspaceProjectPage({ projectId }: { projectId: string }) {
               </p>
             </div>
           </div>
-          <Button type="button" onClick={handleCreateSession}>
-            <PlusIcon data-icon="inline-start" />
-            新建会话
-          </Button>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-medium">项目会话</h2>
-          </div>
-          <div className="divide-y divide-border">
-            {sessions.map((session) => (
-              <Link
-                key={session.id}
-                href={`/assets/my/${currentProject.id}/${session.routeSegment}`}
-                className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
-              >
-                <MessageSquareTextIcon className="shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {session.title}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {session.messages.length
-                      ? (getFirstUserText(session.messages) ??
-                        "已有数据查询上下文")
-                      : "空白会话"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+        <div className="rounded-lg border border-border bg-card px-4 py-6">
+          <p className="text-sm text-muted-foreground">
+            这个 folder 当前没有绑定会话。
+          </p>
         </div>
       </div>
     </section>
@@ -102,7 +91,7 @@ export function WorkspaceProjectPage({ projectId }: { projectId: string }) {
 }
 
 export function WorkspaceProjectsPage() {
-  const { projects } = useWorkspace()
+  const { getSession, projects } = useWorkspace()
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-6">
@@ -112,29 +101,46 @@ export function WorkspaceProjectsPage() {
             我的数据资产
           </h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            保存后的项目会以 folder
-            的形式出现在这里，每个项目可以继续沉淀多个查询会话。
+            保存后的数据资产会以 folder 的形式出现在这里。当前每个
+            folder 对应一条会话，结构上保留后续多会话扩展。
           </p>
         </div>
         <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="divide-y divide-border">
-            {projects.map((project) => (
-              <Link
-                key={project.id}
-                href={`/assets/my/${project.id}`}
-                className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
-              >
-                <FolderOpenIcon className="shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {project.title}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {project.description}
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {projects.map((project) => {
+              const primarySession = project.sessionIds
+                .map((sessionId) => getSession(sessionId))
+                .find(Boolean)
+              const title = primarySession?.title ?? project.title
+              const description = primarySession?.messages.length
+                ? (getFirstUserText(primarySession.messages) ??
+                  project.description)
+                : project.description
+
+              return (
+                <Link
+                  key={project.id}
+                  href={
+                    primarySession
+                      ? `/assets/my/${project.id}/${primarySession.routeSegment}`
+                      : `/assets/my/${project.id}`
+                  }
+                  className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
+                >
+                  {project.isMcpShared ? (
+                    <FolderSymlinkIcon className="shrink-0 text-muted-foreground" />
+                  ) : (
+                    <FolderIcon className="shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{title}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {description}
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </div>

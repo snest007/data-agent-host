@@ -19,7 +19,7 @@ import { appRoutes } from "@/lib/navigation"
 import {
   EllipsisIcon,
   FolderIcon,
-  FolderOpenIcon,
+  FolderSymlinkIcon,
   GalleryVerticalEndIcon,
   HardDriveIcon,
   MessageSquarePlusIcon,
@@ -33,6 +33,7 @@ type SidebarNavItem = {
   url?: string
   icon?: React.ReactNode
   collapsedIcon?: React.ReactNode
+  actionType?: "project" | "session"
   showAction?: boolean
   onNewSession?: () => void
   onRename?: () => void
@@ -57,7 +58,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
   const {
-    createProjectSession,
     deleteProject,
     deleteSession,
     getSession,
@@ -91,56 +91,37 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {
         title: "我的数据资产",
         collapsible: true,
-        items: projects.map((project) => ({
-          title: project.title,
-          url: `/assets/my/${project.id}`,
-          icon: <FolderOpenIcon />,
-          collapsedIcon: <FolderIcon />,
-          showAction: true,
-          onNewSession: () => {
-            const session = createProjectSession(project.id)
-
-            if (session) {
-              router.push(`/assets/my/${project.id}/${session.routeSegment}`)
-            }
-          },
-          onRename: () => {
-            const nextTitle = window.prompt("重命名数据资产", project.title)
-
-            if (nextTitle !== null) {
-              renameProject(project.id, nextTitle)
-            }
-          },
-          onDelete: () => {
-            deleteProject(project.id)
-            router.replace(appRoutes.newSession.path)
-          },
-          items: project.sessionIds
+        items: projects.map((project) => {
+          const primarySession = project.sessionIds
             .map((sessionId) => getSession(sessionId))
-            .filter((session): session is NonNullable<typeof session> =>
-              Boolean(session)
-            )
-            .map((session) => {
-              const sessionUrl = `/assets/my/${project.id}/${session.routeSegment}`
+            .find(Boolean)
+          const itemTitle = primarySession?.title ?? project.title
 
-              return {
-                title: session.title,
-                url: sessionUrl,
-                showAction: true,
-                onRename: () => {
-                  const nextTitle = window.prompt("重命名会话", session.title)
+          return {
+            title: itemTitle,
+            url: primarySession
+              ? `/assets/my/${project.id}/${primarySession.routeSegment}`
+              : `/assets/my/${project.id}`,
+            icon: project.isMcpShared ? <FolderSymlinkIcon /> : <FolderIcon />,
+            actionType: "project",
+            showAction: true,
+            onRename: () => {
+              const nextTitle = window.prompt("重命名数据资产", itemTitle)
 
-                  if (nextTitle !== null) {
-                    renameSession(session.id, nextTitle)
-                  }
-                },
-                onDelete: () => {
-                  deleteSession(session.id)
-                  router.replace(appRoutes.newSession.path)
-                },
+              if (nextTitle !== null) {
+                renameProject(project.id, nextTitle)
+
+                if (primarySession) {
+                  renameSession(primarySession.id, nextTitle)
+                }
               }
-            }),
-        })),
+            },
+            onDelete: () => {
+              deleteProject(project.id)
+              router.replace(appRoutes.newSession.path)
+            },
+          }
+        }),
       },
       {
         title: "临时会话",
@@ -183,7 +164,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
     ],
     [
-      createProjectSession,
       deleteProject,
       deleteSession,
       getSession,
