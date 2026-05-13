@@ -1,22 +1,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import {
-  ChevronRightIcon,
-  DatabaseIcon,
-  DownloadIcon,
-  EllipsisIcon,
-  SearchIcon,
-} from "lucide-react"
+import { useRouter } from "next/navigation"
+import { DownloadIcon, SearchIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -26,143 +15,92 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { TablePaginationFooter } from "@/components/table-pagination-footer"
 import { cn } from "@/lib/utils"
+import {
+  categoryDefinitions,
+  officialAssets,
+  type CategoryId,
+  type OfficialAssetRecord,
+} from "@/lib/official-assets"
 
-type CategoryId = "all" | "finance" | "growth" | "general"
-
-type AssetRecord = {
-  id: string
-  name: string
-  categoryId: Exclude<CategoryId, "all">
-  categoryLabel: string
-  groupLabel: string
-  topicLabel: string
-  refreshLabel: string
-  fieldCount: number
-  source: string
-  status: "已订阅" | "待接入"
-  description: string
-}
-
-type AssetGroup = {
-  id: string
-  title: string
-  items: { id: string; title: string }[]
-}
-
-type CategoryDefinition = {
-  id: CategoryId
-  title: string
-  groups: AssetGroup[]
-}
-
-const officialAssets: AssetRecord[] = [
-  {
-    id: "revenue-overview",
-    name: "经营总览模板",
-    categoryId: "finance",
-    categoryLabel: "财务",
-    groupLabel: "经营分析",
-    topicLabel: "收入成本",
-    refreshLabel: "每日 08:00 更新",
-    fieldCount: 6,
-    source: "财务中台",
-    status: "已订阅",
-    description: "围绕收入、成本、ROI 与趋势异动，快速生成可继续追问的数据分析对话。",
-  },
-  {
-    id: "purchase-receipt-detail",
-    name: "采购接收单明细-uat",
-    categoryId: "finance",
-    categoryLabel: "财务",
-    groupLabel: "采购核算",
-    topicLabel: "验收",
-    refreshLabel: "每 30 分钟同步",
-    fieldCount: 8,
-    source: "采购共享服务",
-    status: "已订阅",
-    description: "支持按接收单、业务期间、单据状态和入账状态筛选采购验收明细。",
-  },
-  {
-    id: "growth-overview",
-    name: "用户增长模板",
-    categoryId: "growth",
-    categoryLabel: "增长",
-    groupLabel: "活动复盘",
-    topicLabel: "拉新增长",
-    refreshLabel: "每小时同步",
-    fieldCount: 5,
-    source: "增长分析团队",
-    status: "已订阅",
-    description: "适合拉新、留存、渠道对比等场景，支持继续让 Agent 改口径或重组视图。",
-  },
-  {
-    id: "project-health",
-    name: "项目健康度模板",
-    categoryId: "general",
-    categoryLabel: "综合",
-    groupLabel: "项目管理",
-    topicLabel: "项目健康",
-    refreshLabel: "实时查询",
-    fieldCount: 6,
-    source: "PMO",
-    status: "待接入",
-    description: "聚合任务、风险、预算与里程碑，适合持续跟踪项目推进状态。",
-  },
+const defaultRecentSearches = [
+  "预算执行总表",
+  "供应商主数据台账",
+  "接",
+  "验收",
+  "财务-PTP-订单行明细表",
+  "付款申请单明细",
+  "应用层-财务-PTP-采购接收单明细",
+  "结算单执行明细",
 ]
 
-const categoryDefinitions: CategoryDefinition[] = [
-  {
-    id: "all",
-    title: "全部数据资产",
-    groups: [],
-  },
-  {
-    id: "finance",
-    title: "财务",
-    groups: [
-      {
-        id: "finance-ops",
-        title: "经营分析",
-        items: [{ id: "revenue-overview", title: "经营总览模板" }],
-      },
-      {
-        id: "finance-procurement",
-        title: "采购核算",
-        items: [{ id: "purchase-receipt-detail", title: "采购接收单明细-uat" }],
-      },
-    ],
-  },
-  {
-    id: "growth",
-    title: "增长",
-    groups: [
-      {
-        id: "growth-review",
-        title: "活动复盘",
-        items: [{ id: "growth-overview", title: "用户增长模板" }],
-      },
-    ],
-  },
-  {
-    id: "general",
-    title: "综合",
-    groups: [
-      {
-        id: "general-project",
-        title: "项目管理",
-        items: [{ id: "project-health", title: "项目健康度模板" }],
-      },
-    ],
-  },
-]
+function exportCsv(
+  filename: string,
+  columns: string[],
+  rows: string[][]
+) {
+  const escapeField = (value: string) => {
+    if (
+      value.includes(",") ||
+      value.includes('"') ||
+      value.includes("\n") ||
+      value.includes("\r")
+    ) {
+      return `"${value.replace(/"/g, '""')}"`
+    }
+
+    return value
+  }
+
+  const header = columns.map(escapeField).join(",")
+  const body = rows.map((row) => row.map((cell) => escapeField(cell)).join(","))
+  const csv = `\uFEFF${[header, ...body].join("\n")}`
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+
+  anchor.href = url
+  anchor.download = `${filename}.csv`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
 
 export function OfficialAssetsPage() {
+  const router = useRouter()
+  const [draftQuery, setDraftQuery] = useState("")
   const [query, setQuery] = useState("")
+  const [recentSearches, setRecentSearches] = useState(defaultRecentSearches)
   const [activeCategory, setActiveCategory] = useState<CategoryId>("all")
-  const [focusedAssetId, setFocusedAssetId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
 
   const normalizedQuery = query.trim().toLowerCase()
+
+  const commitSearch = (nextQuery: string) => {
+    const trimmedQuery = nextQuery.trim()
+
+    setQuery(trimmedQuery)
+    setDraftQuery(trimmedQuery)
+    setCurrentPage(1)
+
+    if (!trimmedQuery) {
+      return
+    }
+
+    setRecentSearches((current) => {
+      const deduped = current.filter((item) => item !== trimmedQuery)
+      return [trimmedQuery, ...deduped].slice(0, 8)
+    })
+  }
+
+  const resetSearch = () => {
+    setDraftQuery("")
+    setQuery("")
+    setCurrentPage(1)
+  }
 
   const filteredAssets = useMemo(() => {
     return officialAssets.filter((asset) => {
@@ -170,109 +108,74 @@ export function OfficialAssetsPage() {
         activeCategory === "all" || asset.categoryId === activeCategory
       const matchesQuery =
         !normalizedQuery ||
-        [
-          asset.name,
-          asset.categoryLabel,
-          asset.groupLabel,
-          asset.topicLabel,
-          asset.refreshLabel,
-          asset.source,
-          asset.description,
-        ].some((value) => value.toLowerCase().includes(normalizedQuery))
+        [asset.name, asset.sourceSystem, asset.description]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery)
 
       return matchesCategory && matchesQuery
     })
   }, [activeCategory, normalizedQuery])
-
-  const highlightedAssetId =
-    focusedAssetId && filteredAssets.some((asset) => asset.id === focusedAssetId)
-      ? focusedAssetId
-      : null
-
-  const subscribedCount = officialAssets.filter(
-    (asset) => asset.status === "已订阅"
-  ).length
+  const safeAssetPage = Math.min(
+    currentPage,
+    Math.max(Math.ceil(filteredAssets.length / pageSize), 1)
+  )
+  const paginatedAssets = useMemo(() => {
+    const start = (safeAssetPage - 1) * pageSize
+    return filteredAssets.slice(start, start + pageSize)
+  }, [filteredAssets, safeAssetPage])
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-b border-border px-6 py-6">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <DatabaseIcon className="size-4" />
-            数据中心
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight">官方数据资产</h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            汇总已沉淀的官方数据资产与模板入口。你可以先按分类或关键词筛选，再从表格中查看资产说明、更新频率和来源系统。
-          </p>
-          <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-muted-foreground">
-            <span>资产总数：{officialAssets.length}</span>
-            <span>已订阅：{subscribedCount}</span>
-            <span>当前结果：{filteredAssets.length}</span>
-          </div>
-        </div>
-      </div>
-
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto grid min-h-full w-full max-w-7xl grid-cols-1 gap-0 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="border-r border-border px-4 py-6">
+        <div className="mx-auto grid min-h-full w-full max-w-7xl grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="border-r border-border px-5 py-6">
             <div className="space-y-4">
               <div className="px-2 text-sm font-medium text-muted-foreground">
                 资产分类
               </div>
               <div className="space-y-1">
                 {categoryDefinitions.map((category) => {
-                  const categoryCount =
+                  const assetsInCategory =
                     category.id === "all"
-                      ? officialAssets.length
+                      ? officialAssets
                       : officialAssets.filter(
                           (asset) => asset.categoryId === category.id
-                        ).length
+                        )
 
                   const isActive = activeCategory === category.id
 
                   return (
-                    <div key={category.id} className="space-y-1">
+                    <div key={category.id} className="space-y-1.5">
                       <button
                         type="button"
                         onClick={() => setActiveCategory(category.id)}
                         className={cn(
-                          "flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition-colors",
+                          "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
                           isActive
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                            : "text-foreground hover:bg-muted"
+                            ? "bg-muted text-foreground"
+                            : "text-foreground hover:bg-muted/70"
                         )}
                       >
                         <span className="font-medium">{category.title}</span>
                         <span className="text-xs text-muted-foreground">
-                          {categoryCount}
+                          {assetsInCategory.length}
                         </span>
                       </button>
 
-                      {category.groups.length > 0 && isActive ? (
-                        <div className="space-y-3 border-l border-border pl-4">
-                          {category.groups.map((group) => (
-                            <div key={group.id} className="space-y-1">
-                              <div className="px-2 pt-1 text-sm font-medium text-foreground">
-                                {group.title}
-                              </div>
-                              {group.items.map((item) => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  onClick={() => setFocusedAssetId(item.id)}
-                                  className={cn(
-                                    "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-                                    highlightedAssetId === item.id
-                                      ? "bg-muted text-foreground"
-                                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                  )}
-                                >
-                                  <span className="truncate">{item.title}</span>
-                                  <ChevronRightIcon className="size-3.5" />
-                                </button>
-                              ))}
-                            </div>
+                      {isActive && category.id !== "all" ? (
+                        <div className="space-y-1 border-l border-border pl-4">
+                          {assetsInCategory.map((asset) => (
+                            <button
+                              key={asset.id}
+                              type="button"
+                              onClick={() =>
+                                router.push(`/assets/official/${asset.id}`)
+                              }
+                              className="block w-full rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              {asset.name}
+                            </button>
                           ))}
                         </div>
                       ) : null}
@@ -285,107 +188,119 @@ export function OfficialAssetsPage() {
 
           <main className="min-w-0 px-6 py-6">
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
-                  <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="搜索数据资产名称、字段或业务说明"
-                    className="pl-9"
-                  />
+              <div className="space-y-3 rounded-xl border border-border bg-background px-4 py-4 shadow-sm">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+                  <div className="relative min-w-0 flex-1">
+                    <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={draftQuery}
+                      onChange={(event) => setDraftQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          commitSearch(draftQuery)
+                        }
+                      }}
+                      placeholder="搜索数据资产名称或说明"
+                      className="h-10 w-full pl-9"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={resetSearch}
+                    >
+                      重置
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => commitSearch(draftQuery)}
+                    >
+                      搜索
+                    </Button>
+                  </div>
                 </div>
-                <Button type="button" size="xs">
-                  <DownloadIcon data-icon="inline-start" />
-                  导出
-                </Button>
+
+                <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-start">
+                  <div className="shrink-0 pt-1">最近搜索：</div>
+                  <div className="flex min-w-0 flex-wrap gap-2">
+                    {recentSearches.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => commitSearch(item)}
+                        className="max-w-full rounded-md bg-muted px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted/80"
+                        title={item}
+                      >
+                        <span className="block max-w-[220px] truncate">
+                          {item}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+              <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead>数据资产</TableHead>
-                      <TableHead>业务主题</TableHead>
-                      <TableHead>订阅状态</TableHead>
-                      <TableHead>更新频率</TableHead>
-                      <TableHead>字段数</TableHead>
                       <TableHead>来源系统</TableHead>
-                      <TableHead className="w-14" />
+                      <TableHead className="w-[140px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredAssets.length ? (
-                      filteredAssets.map((asset) => {
-                        const isHighlighted = highlightedAssetId === asset.id
-
-                        return (
-                          <TableRow
-                            key={asset.id}
-                            className={cn(
-                              "cursor-pointer",
-                              isHighlighted && "bg-muted/60"
-                            )}
-                            onClick={() => setFocusedAssetId(asset.id)}
-                          >
-                            <TableCell className="align-top">
-                              <div className="space-y-1">
-                                <div className="font-medium">{asset.name}</div>
-                                <p className="max-w-md whitespace-normal text-xs leading-5 text-muted-foreground">
-                                  {asset.description}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-2">
-                                <Badge variant="outline">{asset.topicLabel}</Badge>
-                                <Badge variant="outline">{asset.groupLabel}</Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  asset.status === "已订阅" ? "default" : "secondary"
+                      paginatedAssets.map((asset) => (
+                        <TableRow key={asset.id}>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-medium">{asset.name}</div>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                {asset.description}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{asset.sourceSystem}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(`/assets/official/${asset.id}`)
                                 }
                               >
-                                {asset.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{asset.refreshLabel}</TableCell>
-                            <TableCell>{asset.fieldCount}</TableCell>
-                            <TableCell>{asset.source}</TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger
-                                  render={
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      aria-label="更多操作"
-                                      onClick={(event) => event.stopPropagation()}
-                                    />
-                                  }
-                                >
-                                  <EllipsisIcon />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>查看字段</DropdownMenuItem>
-                                  <DropdownMenuItem>发起查询</DropdownMenuItem>
-                                  <DropdownMenuItem>查看来源说明</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })
+                                详情
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  exportCsv(asset.name, asset.draftColumns, asset.draftRows)
+                                }
+                              >
+                                <DownloadIcon className="size-4" />
+                                导出
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     ) : (
                       <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={7} className="py-10 text-center">
+                        <TableCell colSpan={3} className="py-12 text-center">
                           <div className="space-y-2">
                             <p className="font-medium">没有匹配的数据资产</p>
                             <p className="text-sm text-muted-foreground">
-                              可以切换左侧分类，或者换一个关键词继续搜索。
+                              可以切换分类或更换关键词继续搜索。
                             </p>
                           </div>
                         </TableCell>
@@ -393,9 +308,128 @@ export function OfficialAssetsPage() {
                     )}
                   </TableBody>
                 </Table>
+                <TablePaginationFooter
+                  currentPage={safeAssetPage}
+                  onPageChange={setCurrentPage}
+                  pageSize={pageSize}
+                  totalItems={filteredAssets.length}
+                />
               </div>
             </div>
           </main>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export function OfficialAssetDetailPage({
+  asset,
+}: {
+  asset: OfficialAssetRecord
+}) {
+  const [query, setQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
+
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    if (!normalizedQuery) {
+      return asset.draftRows
+    }
+
+    return asset.draftRows.filter((row) =>
+      row.some((cell) => cell.toLowerCase().includes(normalizedQuery))
+    )
+  }, [asset.draftRows, query])
+  const safeDetailPage = Math.min(
+    currentPage,
+    Math.max(Math.ceil(filteredRows.length / pageSize), 1)
+  )
+  const paginatedRows = useMemo(() => {
+    const start = (safeDetailPage - 1) * pageSize
+    return filteredRows.slice(start, start + pageSize)
+  }, [filteredRows, safeDetailPage])
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 px-6 py-6">
+          <div className="rounded-xl border border-border bg-background px-4 py-4 shadow-sm">
+            <div className="space-y-3">
+              <div className="text-sm font-medium">请添加筛选项</div>
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索底稿中的字段值"
+                className="max-w-sm"
+              />
+            </div>
+          </div>
+
+          <div className="min-h-0 rounded-xl border border-border bg-background shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="text-sm font-medium">数据详情</div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    exportCsv(asset.name, asset.draftColumns, filteredRows)
+                  }
+                >
+                  <DownloadIcon className="size-4" />
+                  导出
+                </Button>
+              </div>
+            </div>
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    {asset.draftColumns.map((column) => (
+                      <TableHead key={column}>{column}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRows.length ? (
+                    paginatedRows.map((row, rowIndex) => (
+                      <TableRow key={`${asset.id}-${rowIndex}`}>
+                        {row.map((cell, cellIndex) => (
+                          <TableCell
+                            key={`${asset.id}-${rowIndex}-${cellIndex}`}
+                            className={cn(
+                              cellIndex === 0 ? "font-medium" : "text-muted-foreground"
+                            )}
+                          >
+                            {cell}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={asset.draftColumns.length}
+                        className="py-12 text-center text-sm text-muted-foreground"
+                      >
+                        当前筛选条件下暂无数据
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <TablePaginationFooter
+              currentPage={safeDetailPage}
+              onPageChange={setCurrentPage}
+              pageSize={pageSize}
+              totalItems={filteredRows.length}
+            />
+          </div>
         </div>
       </div>
     </section>

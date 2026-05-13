@@ -197,15 +197,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const sections = navSections.map((section) => ({
     ...section,
     defaultOpen: section.collapsible ? true : undefined,
-    items: section.items.map((item) => {
+      items: section.items.map((item) => {
       const subItems = item.items?.map((subItem) => ({
         ...subItem,
-        isActive: decodedPathname === subItem.url,
+        isActive: isPathActive(decodedPathname, subItem.url),
       }))
 
       return {
         ...item,
-        isActive: decodedPathname === item.url,
+        isActive: isPathActive(decodedPathname, item.url),
         items: subItems,
       }
     }),
@@ -254,4 +254,12 @@ function decodePathname(pathname: string) {
   } catch {
     return pathname
   }
+}
+
+function isPathActive(pathname: string, url: string | undefined) {
+  if (!url) {
+    return false
+  }
+
+  return pathname === url || pathname.startsWith(`${url}/`)
 }
