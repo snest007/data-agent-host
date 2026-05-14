@@ -195,6 +195,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
               </div>
               <div className="min-h-0 min-w-0 overflow-hidden">
                 <SessionArtifactPanel
+                  key={`${currentSession.id}:${isArtifactOpen ? "open" : "closed"}`}
                   isOpen={isArtifactOpen}
                   session={currentSession}
                 />
@@ -436,15 +437,6 @@ function SessionArtifactPanel({
   )
   const isFlowDetailView =
     activeArtifactView === "detail" && activeDetailTab === "flow"
-
-  useEffect(() => {
-    if (!isOpen) {
-      return
-    }
-
-    setActiveArtifactView("detail")
-    setActiveDetailTab("data")
-  }, [isOpen, session.id])
 
   useEffect(() => {
     const element = flowViewportRef.current
